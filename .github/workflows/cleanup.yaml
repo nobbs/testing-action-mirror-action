@@ -1,0 +1,62 @@
+name: Cleanup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Cleanup mirror action
+        uses: mikefarah/yq@master
+        id: target-repos
+        with:
+          # parse all the target repos from the mirror-actions.yaml file
+          cmd: yq eval '.repositories[].target' .github/mirror-actions.yaml
+
+      - name: Delete target repos
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.PAT }}
+          script: |
+            const repos = `
+            ${{ steps.target-repos.outputs.result }}
+            `
+            // each repo is on a new line, so iterate over each line and trim the whitespace
+            repos.split('\n').forEach(async (item) => {
+              item = item.trim()
+
+              // bail if the item is empty
+              if (!item) {
+                return
+              }
+
+              // split owner/repo into variables
+              const [owner, repo] = item.split('/')
+
+              // Check if the repo exists
+              const repoExists = await github.rest.repos.get({
+                owner,
+                repo,
+              }).catch(() => false)
+
+              // bail if the repo doesn't exist
+              if (!repoExists) {
+                return
+              }
+
+              // log the repo we're deleting
+              core.warning(`Deleting ${owner}/${repo}...`)
+
+              // delete the repo
+              await github.rest.repos.delete({
+                owner,
+                repo,
+              })
+            })
