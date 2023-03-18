@@ -1,0 +1,8 @@
+---
+repositories:
+  - source: actions/checkout
+    target: nobbs/action-checkout
+  - source: actions/setup-node
+    target: nobbs/action-setup-node
+  - source: actions/setup-python
+    target: nobbs/action-setup-python
